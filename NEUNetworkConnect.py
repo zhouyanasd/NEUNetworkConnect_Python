@@ -1,5 +1,24 @@
 import re
 import requests
+import base64
+from Crypto.PublicKey import RSA
+from Crypto.Cipher import PKCS1_v1_5
+
+def get_rsa_password(text):
+    # 网站使用的公钥
+    pub_key_str = "MFwwDQYJKoZIhvcNAQEBBQADSwAwSAJBAKs2qmEOHBN7PF6O2M5UdvgLcs2tggpQ6gbypkz5mLFmWi8VCwyKM9guLhUu0TvolcrVvS9G51BOvJSKAsclJ3sCAwEAAQ=="
+    
+    # 构造标准 PEM 格式
+    key_der = base64.b64decode(pub_key_str)
+    public_key = RSA.import_key(key_der)
+    
+    # 使用 PKCS#1 v1.5 进行加密
+    cipher = PKCS1_v1_5.new(public_key)
+    # 加密内容为 用户名 + 密码
+    encrypted_text = cipher.encrypt(text.encode('utf-8'))
+    
+    return base64.b64encode(encrypted_text).decode('utf-8')
+
 url="https://pass.neu.edu.cn/tpass/login?service=http%3A%2F%2Fipgw.neu.edu.cn%2Fsrun_portal_sso%3Fac_id%3D1"
 head={
     "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:69.0) Gecko/20100101 Firefox/69.0",
@@ -10,18 +29,22 @@ head={
     "Upgrade-Insecure-Requests": "1"
 }
 sess=requests.session()
-req=sess.get(url,headers=head)
+res=sess.get(url,headers=head)
 
 cookie = req.cookies
-lt_execution_id=re.findall('name="lt" value="(.*?)".*\sname="execution" value="(.*?)"', req.text, re.S)
 
-payload={
-    "rsa":"2188888goodjob8888"+lt_execution_id[0][0],
-    "ul":"7",
-    "pl":"11",
-    "lt":lt_execution_id[0][0],
-    "execution":lt_execution_id[0][1],
-    "_eventId":"submit"
+lt = re.search(r'name="lt" value="(.*?)"', res.text).group(1)
+execution = re.search(r'name="execution" value="(.*?)"', res.text).group(1)
+    
+rsa_encrypted = get_rsa_password(stu_number + stu_pass)
+    
+payload = {
+    "rsa": rsa_encrypted,
+    "ul": str(len(stu_number)),
+    "pl": str(len(stu_pass)),
+    "lt": lt,
+    "execution": execution,
+    "_eventId": "submit"
 }
 r2=sess.post("https://pass.neu.edu.cn/tpass/login?service=http%3A%2F%2Fipgw.neu.edu.cn%2Fsrun_portal_sso%3Fac_id%3D1", headers=head, data=payload, 
              cookies=cookie, allow_redirects=False, verify=False)
