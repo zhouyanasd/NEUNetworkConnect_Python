@@ -31,10 +31,13 @@ head={
 sess=requests.session()
 res=sess.get(url,headers=head)
 
-cookie = req.cookies
+cookie = res.cookies
 
 lt = re.search(r'name="lt" value="(.*?)"', res.text).group(1)
 execution = re.search(r'name="execution" value="(.*?)"', res.text).group(1)
+
+stu_number="0000"
+stu_pass="xxxx"
     
 rsa_encrypted = get_rsa_password(stu_number + stu_pass)
     
